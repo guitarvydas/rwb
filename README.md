@@ -127,6 +127,243 @@ Hitting `<TAB>` again shows (un-elides) the lines.
 
 Using elision, the reader can concentrate on the _bare essence_ of the match, for example the reader can loo at the `# match` part and elide the `## output` part. You can't understand the `## output` part until you've understood the `# match` part anyway. Why confuse the reader by showing too much at once?
 
+# First Cut - Identity
+The first thing to do is to make a version of the transpiler that "does nothing". It parses the input and then outputs it.
+
+I'm using Ohm-JS which skips spaces if the Pattern rules start with capital letters.  This version does not "leave the input alone", since it drops whitespace. I've added some whitespace to make the identity output look nice.
+
+I list the code for the 3 input sections.
+
+The full .HTML file is listed further below. The [ex3.html]() code is on github.
+
+## Source
+```
+# match
+number <- [0-9]+
+sum <- prod ('+' sum)?
+prod <- number ('*' prod)?
+
+## output
+number -> (string->number $1)
+sum -> (if $2 (+ $1 $2) $1)
+prod -> (if $2 (* $1 $2) $1)
+```
+## Patterns Specification
+```
+ex3 {
+  Specification = MatchSection OutputSection
+  MatchSection = "#"+ "match" Rule+
+  OutputSection = "#"+ "output" Emitter+
+
+  Emitter = EmitterID "->" codeToEOL
+
+  Rule = RuleID "<-" Pattern+
+  Pattern = PrimaryPattern Operator?
+  Operator = Optional | ZeroOrMore | OneOrMore
+  Optional = "?"
+  ZeroOrMore = "*"
+  OneOrMore = "+"
+  PrimaryPattern = range | quoted | GroupedPattern | RuleReference
+  GroupedPattern = "(" Pattern ")"
+  range = "[" char "-" char "]"
+  char = "A" .. "Z" | "a" .. "z" | "0" .. "9"
+
+  quoted = "'" (~"'" any)* "'"
+
+  RuleReference = id ~arrow
+  RuleID = id &"<-"
+  EmitterID = id &"->"
+  
+  arrow = "<-" | "->"
+  id = firstChar restChar* &space
+  firstChar = ~ws ~delim any
+  restChar = ~ws any
+  delim = "#" | ":" | "<-" | "->" | "*" | "?" | "+"
+
+  ws = " " | "\t" | newline
+  codeToEOL = (~newline any)* newline+
+  newline = "\n"
+}
+
+```
+## Output Specification
+```
+  Specification [msection osection] = [[${msection}\n${osection}]]
+  MatchSection [ @octothorpes m @rules] = [[${octothorpes} ${m}\n${rules}]]
+  OutputSection [@octothorpes o @emitters] = [[${octothorpes} ${o}\n${emitters}]]
+
+  Emitter [id arrow code] = [[${id} ${arrow} ${code}]]
+
+  Rule [id arrow @patterns] = [[${id} ${arrow} ${patterns}\n]]
+  Pattern [pattern operator] = [[${pattern}${operator} ]]
+  Operator [op] = [[${op}]]
+  Optional [question] = [[${question}]]
+  ZeroOrMore [asterisk] = [[${asterisk}]]
+  OneOrMore [plus] = [[${plus}]]
+  PrimaryPattern [p] = [[${p}]]
+  GroupedPattern [lpar p rpar] = [[${lpar}${p}${rpar}]]
+  range [lbracket c1 dash c2 rbracket] = [[${lbracket}${c1}${dash}${c2}${rbracket}]]
+  char [c] = [[${c}]]
+
+  quoted [q1 @cs q2] = [[${q1}${cs}${q2}]]
+
+  RuleReference [id] = [[${id}]]
+  RuleID [id lookahead_arrow] = [[${id}]]
+  EmitterID [id lookahead_arrow] = [[${id}]]
+  
+  arrow [a] = [[${a}]]
+  id [c @cs lookahead_space] = [[${c}${cs}]]
+  firstChar [c] = [[${c}]]
+  restChar [c] = [[${c}]]
+  delim [d] = [[${d}]]
+
+  ws [w] = [[${w}]]
+  codeToEOL [@cs @nl] = [[${cs}${nl}]]
+  newline [n] = [[${n}]]
+```
+## HTML Racket PEG Workbench - Identity
+```
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+textarea {
+}
+</style>
+</head>
+<body>
+
+<h1>Racket PEG Transpolar Workbench</h1>
+
+<p>grammar:</p>
+<textarea id="grammar" name="a" rows="1" cols="90" placeholder="grammar" style="background-color:oldlace;">
+ex3 {
+  Specification = MatchSection OutputSection
+  MatchSection = "#"+ "match" Rule+
+  OutputSection = "#"+ "output" Emitter+
+
+  Emitter = EmitterID "->" codeToEOL
+
+  Rule = RuleID "<-" Pattern+
+  Pattern = PrimaryPattern Operator?
+  Operator = Optional | ZeroOrMore | OneOrMore
+  Optional = "?"
+  ZeroOrMore = "*"
+  OneOrMore = "+"
+  PrimaryPattern = range | quoted | GroupedPattern | RuleReference
+  GroupedPattern = "(" Pattern ")"
+  range = "[" char "-" char "]"
+  char = "A" .. "Z" | "a" .. "z" | "0" .. "9"
+
+  quoted = "'" (~"'" any)* "'"
+
+  RuleReference = id ~arrow
+  RuleID = id &"<-"
+  EmitterID = id &"->"
+  
+  arrow = "<-" | "->"
+  id = firstChar restChar* &space
+  firstChar = ~ws ~delim any
+  restChar = ~ws any
+  delim = "#" | ":" | "<-" | "->" | "*" | "?" | "+"
+
+  ws = " " | "\t" | newline
+  codeToEOL = (~newline any)* newline+
+  newline = "\n"
+}
+
+
+</textarea>
+
+<p>semantics:</p>
+<textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
+  Specification [msection osection] = [[${msection}\n${osection}]]
+  MatchSection [ @octothorpes m @rules] = [[${octothorpes} ${m}\n${rules}]]
+  OutputSection [@octothorpes o @emitters] = [[${octothorpes} ${o}\n${emitters}]]
+
+  Emitter [id arrow code] = [[${id} ${arrow} ${code}]]
+
+  Rule [id arrow @patterns] = [[${id} ${arrow} ${patterns}\n]]
+  Pattern [pattern operator] = [[${pattern}${operator} ]]
+  Operator [op] = [[${op}]]
+  Optional [question] = [[${question}]]
+  ZeroOrMore [asterisk] = [[${asterisk}]]
+  OneOrMore [plus] = [[${plus}]]
+  PrimaryPattern [p] = [[${p}]]
+  GroupedPattern [lpar p rpar] = [[${lpar}${p}${rpar}]]
+  range [lbracket c1 dash c2 rbracket] = [[${lbracket}${c1}${dash}${c2}${rbracket}]]
+  char [c] = [[${c}]]
+
+  quoted [q1 @cs q2] = [[${q1}${cs}${q2}]]
+
+  RuleReference [id] = [[${id}]]
+  RuleID [id lookahead_arrow] = [[${id}]]
+  EmitterID [id lookahead_arrow] = [[${id}]]
+  
+  arrow [a] = [[${a}]]
+  id [c @cs lookahead_space] = [[${c}${cs}]]
+  firstChar [c] = [[${c}]]
+  restChar [c] = [[${c}]]
+  delim [d] = [[${d}]]
+
+  ws [w] = [[${w}]]
+  codeToEOL [@cs @nl] = [[${cs}${nl}]]
+  newline [n] = [[${n}]]
+</textarea>
+
+<p>source:</p>
+<textarea id="source" name="source" rows="17" cols="90" placeholder="notation test" style="background-color:oldlace;">
+# match
+number <- [0-9]+
+sum <- prod ('+' sum)?
+prod <- number ('*' prod)?
+
+## output
+number -> (string->number $1)
+sum -> (if $2 (+ $1 $2) $1)
+prod -> (if $2 (* $1 $2) $1)
+</textarea>
+
+<p>transpiled:</p>
+<textarea id="transpiled" name="transpiled" rows="17" cols="90" placeholder="transpiled"  readonly style="background-color:whitesmoke;">
+</textarea>
+<br>
+<br>
+<p id="status" > READY </p>
+
+<br>
+<button onclick="generate ()">Generate</button>
+<script src="../scnwb/ohm.js"></script>
+<script src="../scnwb/glue.js"></script>
+<script src="../scnwb/scope.js"></script>
+<script src="support.js"></script>
+<script>
+
+
+  function generate () {
+      let scnGrammar = document.getElementById('grammar').value;
+      let notationSource = document.getElementById('source').value;
+      let semantics = document.getElementById('semantics').value;
+      let generatedSCNSemantics = transpiler (semantics, glueGrammar, "_glue", glueSemantics);
+
+      _ruleInit();
+      try {
+	  document.getElementById('status').innerHTML = "FAILED";
+	  let semObject = eval('(' + generatedSCNSemantics + ')');
+	  document.getElementById ("transpiled").value = semObject;
+	  let tr = transpiler(notationSource, scnGrammar, "_glue", semObject);
+	  document.getElementById('transpiled').value = tr;
+	  document.getElementById('status').innerHTML = "OK";
+      }
+       catch (err) {
+	  document.getElementById('status').innerHTML = err;
+       }	   
+  }
+  </script>
+</body>
+</html>
+```
+
 # See Also
 
 [Blog](https://guitarvydas.github.io)
