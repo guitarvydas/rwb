@@ -3,16 +3,47 @@ layout: post
 title:  "RWB - Racket SCN Workbench"
 ---
 # Introduction
-See [Racket PEG Example 3](https://docs.racket-lang.org/peg/index.html).
+
+In this project, I build a tool that separates implementation details from the top-level grammar and show how to generate "#lang peg" Racket code.
+
+I use a PEG to generate PEG code for Racket.
+
+In other words, I show how to write a DSL for writing DSLs.
+
+# Motivations
+
+I like to see _architecture_ separated from _implementation_. YMMV.
+
+Most PEG tools require the programmer to insert variables and code into the top-level grammar, thereby, making the grammar harder to read and understand.
+
+## SCN
+
+As an aside, I show that you don't need to generalize code to produce something useful.
+
+That is the SCN - Solution Centric Notation - philosophy.
+
+I believe that you can write SCN's in only a few hours (maybe 10's of minutes), which changes the landscape of how to write code. This is [FDD](https://guitarvydas.github.io/2021/04/23/Failure-Driven-Design.html) philosophy. I suggest that you knock off a few SCNs for every project, instead of manually writing code for the project. The code for the project can be automatically re-generated from the SCNs.
+
+# Disclaimer
+
+I concentrate only on [Racket PEG Example 3](https://docs.racket-lang.org/peg/index.html) for clarity.
+
+By definition, then, this small project is incomplete, but is sufficient to show how to build an SCN that creates Racket code.
+
+I expect that this project could be extended by any competent programmer.
 
 # Pattern Match
+Example 3 of the Racket PEG documentation shows a simple pattern-matcher (aka grammar) for a calculator:
 ```
 #lang peg
 number <- res:[0-9]+ -> (string->number res);
 sum <- v1:prod ('+' v2:sum)? -> (if v2 (+ v1 v2) v1);
 prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
 ```
+This pattern-matcher includes variables and Racket code, all of which makes the pattern-matcher harder to read.
+
 # Desired Output
+The Example 3 documentation shows the following Racket (Scheme) code for the above pattern matcher:
 ```
 (define-peg number (name res (+ (range #\0 #\9)))
   (string->number res))
@@ -23,7 +54,7 @@ prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
   (and (name v1 number) (? (and #\* (name v2 prod))))
   (if v2 (* v1 v2) v1))
 ```
-
+Obviously, this looks like Scheme code, and the simplicity of the original pattern is lost in Scheme-oriented details.
 # DE-noising the Pattern
 We really want to say "match this", "then, do that with the matches".
 
@@ -42,7 +73,7 @@ prod -> (if $2 (* $1 $2) $1)
 
 where "$" is just another character that is a valid part of a name (if this were JS, we might use "_" instead of "$", but Racket lets us use "$").
 
-We could be fancier than this, using v1 and v2 and some _let_ expressions, but let's go for low-hanging fruit first.
+We could be fancier than this, using _v1_ and _v2_ and some _let_ expressions, but let's go for low-hanging fruit first.
 
 ## Fancier
 
@@ -65,21 +96,21 @@ prod [v1 v2] -> (if v2/1 (* v1 v2/1) v1)
 
 Maybe we would want to use `[]` or maybe `.` for the sub-matches. 
 
-There is a plethora of choice.
+There is a plethora of choices.
 
-Let's stick to low-hanging fruit first.
+Let's stick to the low-hanging fruit first.
 
 Syntax is cheap. 
 
 We can always write a pre-filter later, if it seems worth the time.
 
-## One Solution
+## One Possible Solution
 
 Let's think about building a tool that allows us to write matches and "do that" code as above.
 
 The tool converts our new syntax into valid Racket code.
 
-I like to call "new syntax" a _notation_. A SCN - Solution-Centric Notation - to be exact.
+I like to use the term _notation_ instead of the phrase "new syntax". A SCN - Solution-Centric Notation - to be exact.
 
 The tool will convert the de-noised pattern into an internal form:
 ```
@@ -127,14 +158,20 @@ Hitting `<TAB>` again shows (un-elides) the lines.
 
 Using elision, the reader can concentrate on the _bare essence_ of the match, for example the reader can loo at the `# match` part and elide the `## output` part. You can't understand the `## output` part until you've understood the `# match` part anyway. Why confuse the reader by showing too much at once?
 
-# First Cut - Identity
-The first thing to do is to make a version of the transpiler that "does nothing". It parses the input and then outputs it.
+In other words, .md files and org-mode can be used as an IDE for programming.
 
-I'm using Ohm-JS which skips spaces if the Pattern rules start with capital letters.  This version does not "leave the input alone", since it drops whitespace. I've added some whitespace to make the identity output look nice.
+# First Cut - Identity
+The first thing to do is to make a version of the transpiler that "does nothing". It parses the input and then outputs it with no substantial changes.
+
+This approach lets use build and test the pattern matcher in a coherent manner.
+
+I'm using Ohm-JS which skips spaces if the Pattern rules start with capital letters.  This version does not "leave the input alone", since it drops whitespace[^1]. I've added some whitespace to make the identity output look nice.
+
+[^1]: It is actually possible to write a true identity grammar in Ohm-JS. For this, we would use rules that begin with lower-case letters and worry about whitespace. Most PEG libraries work this way, only. Ohm-JS was designed to elide whitespace - the idea being to keep the grammar architecture "clean". Most compilers drop whitespace early on, since it only gets in the way. Being able to write identity grammars (whitespace preserving grammars) makes it easier to think about building SCNs.  This may seem to be a small detail, but when small things get in the way, creativity drops. [Details kill](https://guitarvydas.github.io/2021/03/17/Details-Kill.html).  Programming is hard-enough. Suppressing details enables higher-level thought.
 
 I list the code for the 3 input sections.
 
-The full .HTML file is listed further below. The [ex3.html]() code is on github.
+The full .HTML file is listed further below. The [ex3.html](https://github.com/guitarvydas/rwb) code is on github.
 
 ## Source
 ```
