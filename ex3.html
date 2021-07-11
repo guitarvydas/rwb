@@ -52,22 +52,22 @@ ex3 {
 
 <p>semantics:</p>
 <textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
-  Specification [m o] = [[${m}${o}]]
-  MatchSection [@octothorpes m @rules] = [[${octothorpes}${m}\n${rules}]]
+  Specification [m o] = {{createEmptyTables();}}[[#lang peg\n${constructpeg()}]]
+  MatchSection [@octothorpes m @rules] = [[#lang peg\n${octothorpes}${m}\n${rules}]]
   OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
 
-  Rule [id arrow patterns] = {{resetVariables()}}[[${id}${arrow}${patterns}\n]]
+  Rule [id arrow patterns] = {{resetVariables()}}[[${addRule(id,patterns)}${id}${arrow}${patterns}\n]]
   Patterns [p] = [[${p}]]
   MultiplePatterns [p @more] = [[${p}${more}]]
   SinglePattern [p] = [[${p}]]
-  Pattern [p] = [[${p} ]]
+  Pattern [p] = [[${genvar()}:${p} ]]
   PatternWithOperator [prim op] = [[${prim}${op}]]
   PatternWithoutOperator [prim] = [[${prim}]]
   
-  Emitter [id arrow code] = [[${id}${arrow}${code}]]
+  Emitter [id arrow code] = [[${addEmitter(id,code)}${id}${arrow}${code}]]
 
   Primary [p] = [[${p}]]
-  ParenthesizedPrimary [lpar p rpar] = [[${p}]]
+  ParenthesizedPrimary [lpar p rpar] = [[(${p})]]
   RuleReference [id] = [[${id}]]
   Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}-${c2}${rbracket}]]
   quoted [q1 c q2] = [[${q1}${c}${q2}]]
@@ -94,9 +94,9 @@ sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
 ## output
-number -> (string->number $0)
-sum -> (if $ (+ $1 $2) $1)
-prod -> (if $2 (* $1 $2) $1)
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
 </textarea>
 
 <p>transpiled:</p>
