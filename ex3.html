@@ -12,42 +12,39 @@ textarea {
 
 <p>grammar:</p>
 <textarea id="grammar" name="a" rows="1" cols="90" placeholder="grammar" style="background-color:oldlace;">
+
 ex3 {
   Specification = MatchSection OutputSection
   MatchSection = "#"+ "match" Rule+
   OutputSection = "#"+ "output" Emitter+
 
-  Emitter = EmitterID "->" codeToEOL
+  Rule = Rid "<-" Pattern+
+  Pattern = PatternWithOperator | PatternWithoutOperator
+  PatternWithOperator = Primary Operator
+  PatternWithoutOperator = Primary
 
-  Rule = RuleID "<-" Pattern+
-  Pattern = PrimaryPattern Operator?
-  Operator = Optional | ZeroOrMore | OneOrMore
-  Optional = "?"
-  ZeroOrMore = "*"
-  OneOrMore = "+"
-  PrimaryPattern = range | quoted | GroupedPattern | RuleReference
-  GroupedPattern = "(" Pattern ")"
-  range = "[" char "-" char "]"
-  char = "A" .. "Z" | "a" .. "z" | "0" .. "9"
-
-  quoted = "'" (~"'" any)* "'"
-
+  Primary = ParenthesizedPrimary | Range | quoted | RuleReference
+  ParenthesizedPrimary = "(" Pattern+ ")"
   RuleReference = id ~arrow
-  RuleID = id &"<-"
-  EmitterID = id &"->"
+  Range = "[" alnum "-" alnum "]"
+  quoted = "'" any "'"
+  
+  Operator = "+" | "?" | "*"
+  
+  Emitter = Eid "->" codeToEOL
+
+  Rid = id &arrow
+  Eid = id &arrow
   
   arrow = "<-" | "->"
-  id = firstChar restChar* &space
-  firstChar = ~ws ~delim any
-  restChar = ~ws any
-  delim = "#" | ":" | "<-" | "->" | "*" | "?" | "+"
-
-  ws = " " | "\t" | newline
+  
+  keyword = "match" | "output" | "<-" | "->"
+  id = ~keyword letter alnum*
+  
   codeToEOL = (~newline any)* newline+
   newline = "\n"
+
 }
-
-
 </textarea>
 
 <p>semantics:</p>
@@ -56,19 +53,20 @@ ex3 {
   MatchSection [ @octothorpes m @rules] = [[${octothorpes} ${m}\n${rules}]]
   OutputSection [@octothorpes o @emitters] = [[${octothorpes} ${o}\n${emitters}]]
 
-  Emitter [id arrow code] = [[${id} ${arrow} ${code}]]
-
   Rule [id arrow @patterns] = [[${id} ${arrow} ${patterns}\n]]
-  Pattern [pattern operator] = [[${pattern}${operator} ]]
+  Pattern [p] = [[${p}]]
+  PatternWithOperator [pattern operator] = [[(${operator} ${pattern})]]
+  PatternWithoutOperator [pattern] = [[${pattern}]]
   Operator [op] = [[${op}]]
   Optional [question] = [[${question}]]
   ZeroOrMore [asterisk] = [[${asterisk}]]
   OneOrMore [plus] = [[${plus}]]
   PrimaryPattern [p] = [[${p}]]
   GroupedPattern [lpar p rpar] = [[${lpar}${p}${rpar}]]
-  range [lbracket c1 dash c2 rbracket] = [[${lbracket}${c1}${dash}${c2}${rbracket}]]
+  range [lbracket c1 dash c2 rbracket] = [[(range ${c1} ${c2})]]
   char [c] = [[${c}]]
 
+  Emitter [id arrow code] = [[${id} ${arrow} ${code}]]
   quoted [q1 @cs q2] = [[${q1}${cs}${q2}]]
 
   RuleReference [id] = [[${id}]]
@@ -90,8 +88,8 @@ ex3 {
 <textarea id="source" name="source" rows="17" cols="90" placeholder="notation test" style="background-color:oldlace;">
 # match
 number <- [0-9]+
-sum <- prod ('+' sum)?
-prod <- number ('*' prod)?
+sum <- prod ('+' sum)%
+prod <- number ('*' prod)%
 
 ## output
 number -> (string->number $1)
