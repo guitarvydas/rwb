@@ -35,5 +35,5 @@ function resetVariables () {
 function genvar () {
     let v = scopeGet ('variable');
     scopeModify ('variable', v+1);
-    return "$" + v.toString ();
+    return "v" + v.toString ();
 }
