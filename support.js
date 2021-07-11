@@ -22,7 +22,7 @@ function constructpeg () {
     let s = "";
     let rules = scopeGet('rules');
     rules.forEach (r => {
-	s += (`\n${r.name} <- ${r.pattern} -> ${r.emitter} ;`);
+	s += (`\n(define-peg ${r.name} ${r.pattern} ${r.emitter})`);
     });
     return s;
 }

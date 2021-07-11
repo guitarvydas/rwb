@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+textarea {
+}
+</style>
+</head>
+<body>
+
+<h1>Racket PEG Transpilar Workbench</h1>
+
+<p>grammar:</p>
+<textarea id="grammar" name="a" rows="1" cols="90" placeholder="grammar" style="background-color:oldlace;">
+ex3 {
+  Specification = MatchSection OutputSection
+  MatchSection = "#"+ "match" Rule+
+  OutputSection = "#"+ "output" Emitter+
+
+  Rule = Rid "<-" Patterns
+
+  Patterns = MultiplePatterns | SinglePattern
+  MultiplePatterns = Pattern Pattern+
+  SinglePattern = Pattern
+
+  Pattern = PatternWithOperator | PatternWithoutOperator
+  PatternWithOperator = Primary Operator
+  PatternWithoutOperator = Primary
+  Emitter = Eid "->" codeToEOL
+
+  Primary = ParenthesizedPrimary | Range | quoted | RuleReference
+  ParenthesizedPrimary = "(" Patterns ")"
+  RuleReference = id ~arrow
+  Range = "[" alnum "-" alnum "]"
+  quoted = "'" any "'"
+  
+  Operator = "+" | "?" | "*"
+  
+  Rid = id &arrow
+  Eid = id &arrow
+  
+  arrow = "<-" | "->"
+  
+  keyword = "match" | "output"
+  id = ~keyword letter alnum*
+  
+  codeToEOL = (~newline any)* newline+
+  newline = "\n"
+
+}
+</textarea>
+
+<p>semantics:</p>
+<textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
+  Specification [m o] = {{createEmptyTables();}}[[#lang racket\n(require peg)\n${constructpeg()}]]
+  MatchSection [@octothorpes m @rules] = [[#lang peg\n${octothorpes}${m}\n${rules}]]
+  OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
+
+  Rule [id arrow patterns] = {{resetVariables()}}[[${addRule("gen_" + id,patterns)}]]
+  Patterns [p] = [[${p}]]
+  MultiplePatterns [p @more] = [[(and ${p} ${more})]]
+  SinglePattern [p] = [[${p}]]
+  Pattern [p] = [[(name ${genvar()} ${p})]]
+  PatternWithOperator [prim op] = [[(${op} ${prim})]]
+  PatternWithoutOperator [prim] = [[${prim}]]
+  
+  Emitter [id arrow code] = [[${addEmitter("gen_" + id,code)}]]
+
+  Primary [p] = [[${p}]]
+  ParenthesizedPrimary [lpar p rpar] = [[${p}]]
+  RuleReference [id] = [[gen_${id}]]
+  Range [lbracket c1 minus c2 rbracket] = [[(range #\\${c1} #\\${c2})]]
+  quoted [q1 c q2] = [[#\\${c}]]
+  
+  Operator [op] = [[${op}]]
+  
+  Rid [id lookahead_arrow] = [[${id}]]
+  Eid [id lookahead_arrow] = [[${id}]]
+  
+  arrow [a] = [[${a}]]
+  
+  keyword [k] = [[${k}]]
+  id [l @aln] = [[${l}${aln}]]
+  
+  codeToEOL [@cs @nls] = [[${cs}${nls}]] 
+  newline [c] = [[${c}]]
+</textarea>
+
+<p>source:</p>
+<textarea id="source" name="source" rows="17" cols="90" placeholder="notation test" style="background-color:oldlace;">
+# match
+number <- [0-9]+
+sum <- prod ('+' sum)?
+prod <- number ('*' prod)?
+
+## output
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
+</textarea>
+
+<p>transpiled:</p>
+<textarea id="transpiled" name="transpiled" rows="17" cols="90" placeholder="transpiled"  readonly style="background-color:whitesmoke;">
+</textarea>
+<br>
+<br>
+<p id="status" > READY </p>
+
+<br>
+<button onclick="generate ()">Generate</button>
+<script src="../scnwb/ohm.js"></script>
+<script src="../scnwb/glue.js"></script>
+<script src="../scnwb/scope.js"></script>
+<script src="support.js"></script>
+<script>
+
+
+  function generate () {
+      let scnGrammar = document.getElementById('grammar').value;
+      let notationSource = document.getElementById('source').value;
+      let semantics = document.getElementById('semantics').value;
+      let generatedSCNSemantics = transpiler (semantics, glueGrammar, "_glue", glueSemantics);
+
+      _ruleInit();
+      try {
+          document.getElementById('status').innerHTML = "FAILED";
+          let semObject = eval('(' + generatedSCNSemantics + ')');
+          document.getElementById ("transpiled").value = semObject;
+          let tr = transpiler(notationSource, scnGrammar, "_glue", semObject);
+          document.getElementById('transpiled').value = tr;
+          document.getElementById('status').innerHTML = "OK";
+      }
+       catch (err) {
+          document.getElementById('status').innerHTML = err;
+       }
+  }
+  </script>
+</body>
+</html>
+
