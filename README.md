@@ -192,71 +192,63 @@ ex3 {
   MatchSection = "#"+ "match" Rule+
   OutputSection = "#"+ "output" Emitter+
 
-  Emitter = EmitterID "->" codeToEOL
+  Rule = Rid "<-" Pattern+
+  Pattern = PatternWithOperator | PatternWithoutOperator
+  PatternWithOperator = Primary Operator
+  Emitter = Eid "->" codeToEOL
 
-  Rule = RuleID "<-" Pattern+
-  Pattern = PrimaryPattern Operator?
-  Operator = Optional | ZeroOrMore | OneOrMore
-  Optional = "?"
-  ZeroOrMore = "*"
-  OneOrMore = "+"
-  PrimaryPattern = range | quoted | GroupedPattern | RuleReference
-  GroupedPattern = "(" Pattern ")"
-  range = "[" char "-" char "]"
-  char = "A" .. "Z" | "a" .. "z" | "0" .. "9"
-
-  quoted = "'" (~"'" any)* "'"
-
+  PatternWithoutOperator = Primary
+  Primary = ParenthesizedPrimary | Range | quoted | RuleReference
+  ParenthesizedPrimary = "(" Pattern+ ")"
   RuleReference = id ~arrow
-  RuleID = id &"<-"
-  EmitterID = id &"->"
+  Range = "[" alnum "-" alnum "]"
+  quoted = "'" any "'"
+  
+  Operator = "+" | "?" | "*"
+  
+  Rid = id &arrow
+  Eid = id &arrow
   
   arrow = "<-" | "->"
-  id = firstChar restChar* &space
-  firstChar = ~ws ~delim any
-  restChar = ~ws any
-  delim = "#" | ":" | "<-" | "->" | "*" | "?" | "+"
-
-  ws = " " | "\t" | newline
+  
+  keyword = "match" | "output" | "<-" | "->"
+  id = ~keyword letter alnum*
+  
   codeToEOL = (~newline any)* newline+
   newline = "\n"
-}
 
+}
 ```
 ## Output Specification
 ```
-  Specification [msection osection] = [[${msection}\n${osection}]]
-  MatchSection [ @octothorpes m @rules] = [[${octothorpes} ${m}\n${rules}]]
-  OutputSection [@octothorpes o @emitters] = [[${octothorpes} ${o}\n${emitters}]]
+  Specification [m o] = [[${m}${o}]]
+  MatchSection [@octothorpes m @rules] = [[${octothorpes}${m}\n${rules}]]
+  OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
 
-  Emitter [id arrow code] = [[${id} ${arrow} ${code}]]
+  Rule [rid arrow @patterns] = [[${rid}${arrow}${patterns}\n]]
+  Pattern [p] = [[${p}]]
+  PatternWithOperator [prim op] = [[${prim}${op}]]
+  PatternWithoutOperator [prim] = [[${prim}]]
+  Emitter [id arrow code] = [[${id}${arrow}${code}]]
 
-  Rule [id arrow @patterns] = [[${id} ${arrow} ${patterns}\n]]
-  Pattern [pattern operator] = [[${pattern}${operator} ]]
-  Operator [op] = [[${op}]]
-  Optional [question] = [[${question}]]
-  ZeroOrMore [asterisk] = [[${asterisk}]]
-  OneOrMore [plus] = [[${plus}]]
-  PrimaryPattern [p] = [[${p}]]
-  GroupedPattern [lpar p rpar] = [[${lpar}${p}${rpar}]]
-  range [lbracket c1 dash c2 rbracket] = [[${lbracket}${c1}${dash}${c2}${rbracket}]]
-  char [c] = [[${c}]]
-
-  quoted [q1 @cs q2] = [[${q1}${cs}${q2}]]
-
+  Primary [p] = [[${p}]]
+  ParenthesizedPrimary [lpar @p rpar] = [[${lpar}${p}${rpar}]]
   RuleReference [id] = [[${id}]]
-  RuleID [id lookahead_arrow] = [[${id}]]
-  EmitterID [id lookahead_arrow] = [[${id}]]
+  Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}${minus}${c2}${rbracket}]]
+  quoted [q1 c q2] = [[${q1}${c}${q2}]]
+  
+  Operator [op] = [[${op}]]
+  
+  Rid [id lookahead_arrow] = [[${id}]]
+  Eid [id lookahead_arrow] = [[${id}]]
   
   arrow [a] = [[${a}]]
-  id [c @cs lookahead_space] = [[${c}${cs}]]
-  firstChar [c] = [[${c}]]
-  restChar [c] = [[${c}]]
-  delim [d] = [[${d}]]
-
-  ws [w] = [[${w}]]
-  codeToEOL [@cs @nl] = [[${cs}${nl}]]
-  newline [n] = [[${n}]]
+  
+  keyword [k] = [[${k}]]
+  id [l @aln] = [[${l}${aln}]]
+  
+  codeToEOL [@cs @nls] = [[${cs}${nls}]] 
+  newline [c] = [[${c}]]
 ```
 ## HTML Racket PEG Workbench - Identity
 ```
@@ -279,73 +271,65 @@ ex3 {
   MatchSection = "#"+ "match" Rule+
   OutputSection = "#"+ "output" Emitter+
 
-  Emitter = EmitterID "->" codeToEOL
+  Rule = Rid "<-" Pattern+
+  Pattern = PatternWithOperator | PatternWithoutOperator
+  PatternWithOperator = Primary Operator
+  Emitter = Eid "->" codeToEOL
 
-  Rule = RuleID "<-" Pattern+
-  Pattern = PrimaryPattern Operator?
-  Operator = Optional | ZeroOrMore | OneOrMore
-  Optional = "?"
-  ZeroOrMore = "*"
-  OneOrMore = "+"
-  PrimaryPattern = range | quoted | GroupedPattern | RuleReference
-  GroupedPattern = "(" Pattern ")"
-  range = "[" char "-" char "]"
-  char = "A" .. "Z" | "a" .. "z" | "0" .. "9"
-
-  quoted = "'" (~"'" any)* "'"
-
+  PatternWithoutOperator = Primary
+  Primary = ParenthesizedPrimary | Range | quoted | RuleReference
+  ParenthesizedPrimary = "(" Pattern+ ")"
   RuleReference = id ~arrow
-  RuleID = id &"<-"
-  EmitterID = id &"->"
+  Range = "[" alnum "-" alnum "]"
+  quoted = "'" any "'"
+  
+  Operator = "+" | "?" | "*"
+  
+  Rid = id &arrow
+  Eid = id &arrow
   
   arrow = "<-" | "->"
-  id = firstChar restChar* &space
-  firstChar = ~ws ~delim any
-  restChar = ~ws any
-  delim = "#" | ":" | "<-" | "->" | "*" | "?" | "+"
-
-  ws = " " | "\t" | newline
+  
+  keyword = "match" | "output" | "<-" | "->"
+  id = ~keyword letter alnum*
+  
   codeToEOL = (~newline any)* newline+
   newline = "\n"
+
 }
-
-
 </textarea>
 
 <p>semantics:</p>
 <textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
-  Specification [msection osection] = [[${msection}\n${osection}]]
-  MatchSection [ @octothorpes m @rules] = [[${octothorpes} ${m}\n${rules}]]
-  OutputSection [@octothorpes o @emitters] = [[${octothorpes} ${o}\n${emitters}]]
+  Specification [m o] = [[${m}${o}]]
+  MatchSection [@octothorpes m @rules] = [[${octothorpes}${m}\n${rules}]]
+  OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
 
-  Emitter [id arrow code] = [[${id} ${arrow} ${code}]]
+  Rule [rid arrow @patterns] = [[${rid}${arrow}${patterns}\n]]
+  Pattern [p] = [[${p}]]
+  PatternWithOperator [prim op] = [[${prim}${op}]]
+  PatternWithoutOperator [prim] = [[${prim}]]
+  Emitter [id arrow code] = [[${id}${arrow}${code}]]
 
-  Rule [id arrow @patterns] = [[${id} ${arrow} ${patterns}\n]]
-  Pattern [pattern operator] = [[${pattern}${operator} ]]
-  Operator [op] = [[${op}]]
-  Optional [question] = [[${question}]]
-  ZeroOrMore [asterisk] = [[${asterisk}]]
-  OneOrMore [plus] = [[${plus}]]
-  PrimaryPattern [p] = [[${p}]]
-  GroupedPattern [lpar p rpar] = [[${lpar}${p}${rpar}]]
-  range [lbracket c1 dash c2 rbracket] = [[${lbracket}${c1}${dash}${c2}${rbracket}]]
-  char [c] = [[${c}]]
-
-  quoted [q1 @cs q2] = [[${q1}${cs}${q2}]]
-
+  Primary [p] = [[${p}]]
+  ParenthesizedPrimary [lpar @p rpar] = [[${lpar}${p}${rpar}]]
   RuleReference [id] = [[${id}]]
-  RuleID [id lookahead_arrow] = [[${id}]]
-  EmitterID [id lookahead_arrow] = [[${id}]]
+  Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}${minus}${c2}${rbracket}]]
+  quoted [q1 c q2] = [[${q1}${c}${q2}]]
+  
+  Operator [op] = [[${op}]]
+  
+  Rid [id lookahead_arrow] = [[${id}]]
+  Eid [id lookahead_arrow] = [[${id}]]
   
   arrow [a] = [[${a}]]
-  id [c @cs lookahead_space] = [[${c}${cs}]]
-  firstChar [c] = [[${c}]]
-  restChar [c] = [[${c}]]
-  delim [d] = [[${d}]]
+  
+  keyword [k] = [[${k}]]
+  id [l @aln] = [[${l}${aln}]]
+  
+  codeToEOL [@cs @nls] = [[${cs}${nls}]] 
+  newline [c] = [[${c}]]
 
-  ws [w] = [[${w}]]
-  codeToEOL [@cs @nl] = [[${cs}${nl}]]
-  newline [n] = [[${n}]]
 </textarea>
 
 <p>source:</p>
@@ -399,6 +383,7 @@ prod -> (if $2 (* $1 $2) $1)
   </script>
 </body>
 </html>
+
 ```
 
 # Output
