@@ -52,7 +52,7 @@ ex3 {
   OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
 
   Rule [rid arrow @patterns] = [[${rid}${arrow}${patterns}\n]]
-  Pattern [p] = [[${p}]]
+  Pattern [p] = [[${p} ]]
   PatternWithOperator [prim op] = [[${prim}${op}]]
   PatternWithoutOperator [prim] = [[${prim}]]
   Emitter [id arrow code] = [[${id}${arrow}${code}]]
@@ -86,9 +86,9 @@ sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
 ## output
-number -> (string->number $1)
-sum -> (if $2 (+ $1 $2) $1)
-prod -> (if $2 (* $1 $2) $1)
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
 </textarea>
 
 <p>transpiled:</p>
