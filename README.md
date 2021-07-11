@@ -401,6 +401,112 @@ prod -> (if $2 (* $1 $2) $1)
 </html>
 ```
 
+# Output
+Once the identity transpiler appears to be working, we can think about outputting the code as intended.
+
+We simply hack on the identity outputter until it does what we want.
+
+Let's begin by getting 
+```
+[0-9]+
+```
+to come out as
+```
+(+ (range #\0 #\9))
+```
+## Step 1
+We change the _range_ output code to:
+```
+range [lbracket c1 dash c2 rbracket] = [[(range ${c1} ${c2})]]
+```
+
+Test. Now the output is
+```
+# match
+number <- (range 0 9)+ 
+sum <- prod ('+' sum)? 
+prod <- number ('*' prod)? 
+
+## output
+number -> (string->number $1)
+sum -> (if $2 (+ $1 $2) $1)
+prod -> (if $2 (* $1 $2) $1)
+```
+
+That looks good.
+
+Of course, the code is partly Scheme and partly PEG - good for neither.  That's OK.
+
+## Step 2
+Let's move the operator to the front and make it more Lisp-y
+Change
+```
+Pattern [pattern operator] = [[${pattern}${operator} ]]
+```
+to
+```
+Pattern [pattern operator] = [[(${operator} ${pattern})]]
+```
+
+Test again. 
+
+Squint at the "number" rule - it looks OK, but, the "sum" rule looks screwy now.
+
+```
+# match
+number <- (+ (range 0 9))
+sum <- ( prod)( ('+')( sum)?)
+prod <- ( number)( ('*')( prod)?)
+
+## output
+number -> (string->number $1)
+sum -> (if $2 (+ $1 $2) $1)
+prod -> (if $2 (* $1 $2) $1)
+```
+
+## Step 2a Pattern Splitting
+
+The problem with the "sum" rule is due to the fact that we _always_ wrap sub-patterns in parentheses.
+
+We want to output wrapper parentheses only when _operator_ is non-null.
+
+One solution is to wrap the output code in an _if-then-else_.
+
+But, the pattern-matching engine can do this work for us. The engine should tell us when an operator is present and when there's no operator.
+
+To get the engine to help us this way, we need to split the Pattern rule into two - one rule for when an operator is present and one when there is no operator.
+
+We need to revamp the pattern-matcher specification _and_ we need to revamp the output code:
+
+This is the new pattern-matcher code at that point:
+```
+Pattern = PatternWithOperator | PatternWithoutOperator
+PatternWithOperator = PrimaryPattern Operator
+PatternWithoutOperator = PrimaryPattern
+```
+
+and, this is the new output code at that point:
+```
+Pattern [p] = [[${p}]]
+PatternWithOperator [pattern operator] = [[(${operator} ${pattern})]]
+PatternWithoutOperator [pattern] = [[${pattern}]]
+```
+
+We've added two new rules (PatternWithOperator and PatternWithoutOperator) and, even though the spec is longer (by 2 lines in each section), the result is more human-readable than if it contained _if-then-else_ code.
+
+Now, the output is:
+```
+# match
+number <- (+ (range 0 9))
+sum <- prod('+'sum)?
+prod <- number('*'prod)?
+
+## output
+number -> (string->number $1)
+sum -> (if $2 (+ $1 $2) $1)
+prod -> (if $2 (* $1 $2) $1)
+```
+
 # See Also
 
 [Blog](https://guitarvydas.github.io)
