@@ -385,7 +385,98 @@ prod -> (if $2 (* $1 $2) $1)
 </html>
 
 ```
+# Output
+Once the identity transpiler appears to be working, we can think about outputting the code as intended.
 
+We simply hack on the identity outputter until it does what we want.
+
+Let's begin by getting 
+```
+[0-9]+
+```
+to come out as
+```
+(+ (range #\0 #\9))
+```
+## Step 1
+We change the _range_ output code to:
+```
+Range [lbracket c1 minus c2 rbracket] = [[(range ${c1} ${c2})]]
+```
+
+Test. Now the output is
+```
+#match
+number<-(range 0 9)+
+sum<-prod('+'sum)?
+prod<-number('*'prod)?
+##output
+number->(string->number $1)
+sum->(if $2 (+ $1 $2) $1)
+prod->(if $2 (* $1 $2) $1)
+```
+
+(The range has been replaced, but not much else has changed. This is a temporary format and is not either identity nor output).
+
+## Step 2
+Let's move the operator to the front and make it more Lisp-y
+```
+PatternWithOperator [prim op] = [[(${op} ${prim})]]
+```
+### Rule Splitting
+We want to output wrapper parentheses only when _operator_ is non-null.
+
+One solution is to wrap the output code in an _if-then-else_.
+
+But, the pattern-matching engine can do this work for us. The engine should tell us when an operator is present and when there's no operator.
+
+To get the engine to help us this way, we need to split the Pattern rule into two - one rule for when an operator is present and one when there is no operator.
+
+Pattern was split into two parts (1) with operator and (2) without operator, where one rule would have sufficed for only the grammar checking.  (You may have already noticed this split).)
+```
+Pattern = PatternWithOperator | PatternWithoutOperator
+PatternWithOperator = Primary Operator
+PatternWithoutOperator = Primary
+```
+This split allows the output to emit different code the different cases.
+```
+Pattern [p] = [[${p}]]
+PatternWithOperator [prim op] = [[(${op} ${prim})]]
+PatternWithoutOperator [prim] = [[${prim}]]
+```
+
+## Step 3
+Sequences of rules need to be enclosed in parentheses preceded by "and" `(and ... ...)`.
+
+There are two places in the code that refer to `Pattern+`.
+
+```
+...
+Rule = Rid "<-" Pattern+
+...
+ParenthesizedPrimary = "(" Pattern+ ")"
+...
+```
+
+
+Lets make one rule for Patterns.
+```
+...
+Rule = Rid "<-" Patterns
+Patterns = Pattern Pattern*
+...
+ParenthesizedPrimary = "(" Patterns ")"
+...
+```
+with the attendant changes in the output.
+
+[_At this point, I will stop trying to document every change and will list only major changes_]
+- Remove superfluous parentheses in ParenthesizedPattern.
+
+## Collecting Rules and Emitters
+source-to-source transpilation, no checking, easy
+hash table for rules and another hash table for emitters
+combine rules and emitters by name , `(define-peg rule-name rule-code emitter-code)`
 # See Also
 
 [Blog](https://guitarvydas.github.io)
