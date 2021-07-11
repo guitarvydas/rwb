@@ -115,16 +115,16 @@ prod -> (if $2 (* $1 $2) $1)
 
       _ruleInit();
       try {
-	  document.getElementById('status').innerHTML = "FAILED";
-	  let semObject = eval('(' + generatedSCNSemantics + ')');
-	  document.getElementById ("transpiled").value = semObject;
-	  let tr = transpiler(notationSource, scnGrammar, "_glue", semObject);
-	  document.getElementById('transpiled').value = tr;
-	  document.getElementById('status').innerHTML = "OK";
+          document.getElementById('status').innerHTML = "FAILED";
+          let semObject = eval('(' + generatedSCNSemantics + ')');
+          document.getElementById ("transpiled").value = semObject;
+          let tr = transpiler(notationSource, scnGrammar, "_glue", semObject);
+          document.getElementById('transpiled').value = tr;
+          document.getElementById('status').innerHTML = "OK";
       }
        catch (err) {
-	  document.getElementById('status').innerHTML = err;
-       }	   
+          document.getElementById('status').innerHTML = err;
+       }
   }
   </script>
 </body>
