@@ -1,6 +1,6 @@
 * Transpiling
 ** Source Code to Source Code
-** Use the machine to write code for you.
+** Using the machine to write code for you.
 * Example
 ** Transpiling Racket Code
 ```
@@ -9,6 +9,7 @@
    sum <- v1:prod ('+' v2:sum)? -> (if v2 (+ v1 v2) v1);
    prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
 ```
+Example 3.2 (https://docs.racket-lang.org/peg/index.html#%28part._.Example_3%29)
 ** The Problem
    The grammar is hard to read
    The grammar contains too many details

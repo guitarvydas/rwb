@@ -1,10 +1,10 @@
-# match:
+# grok
 number <- [0-9]+
 sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
-## output:
-number -> (string->number $1)
-sum -> (if $2 (+ $1 $2) $1)
-prod -> (if $2 (* $1 $2) $1)
-
+## emit
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
+	

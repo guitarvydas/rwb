@@ -10,12 +10,12 @@ textarea {
 
 <h1>Racket PEG Transpilar Workbench</h1>
 
-<p>grammar:</p>
+<p>grok:</p>
 <textarea id="grammar" name="a" rows="1" cols="90" placeholder="grammar" style="background-color:oldlace;">
 ex3 {
   Specification = MatchSection OutputSection
-  MatchSection = "#"+ "match" Rule+
-  OutputSection = "#"+ "output" Emitter+
+  MatchSection = "#"+ "grok" Rule+
+  OutputSection = "#"+ "emit" Emitter+
 
   Rule = Rid "<-" Patterns
 
@@ -41,7 +41,7 @@ ex3 {
   
   arrow = "<-" | "->"
   
-  keyword = "match" | "output"
+  keyword = "grok" | "emit"
   id = ~keyword letter alnum*
   
   codeToEOL = (~newline any)* newline+
@@ -50,7 +50,7 @@ ex3 {
 }
 </textarea>
 
-<p>semantics:</p>
+<p>emit:</p>
 <textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
   Specification [m o] = {{createEmptyTables();}}[[#lang peg\n${constructpeg()}]]
   MatchSection [@octothorpes m @rules] = [[#lang peg\n${octothorpes}${m}\n${rules}]]
@@ -88,12 +88,12 @@ ex3 {
 
 <p>source:</p>
 <textarea id="source" name="source" rows="17" cols="90" placeholder="notation test" style="background-color:oldlace;">
-# match
+# grok
 number <- [0-9]+
 sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
-## output
+## emit
 number -> (string->number v0)
 sum -> (if v2 (+ v0 v2) v0)
 prod -> (if v2 (* v0 v2) v0)
