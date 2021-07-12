@@ -8,9 +8,9 @@ textarea {
 </head>
 <body>
 
-<h1>Racket PEG Transpilar Workbench</h1>
+<h1>Racket PEG Transpiler Workbench</h1>
 
-<p>grammar:</p>
+<p>grok:</p>
 <textarea id="grammar" name="a" rows="1" cols="90" placeholder="grammar" style="background-color:oldlace;">
 ex3 {
   Specification = MatchSection OutputSection
@@ -50,7 +50,7 @@ ex3 {
 }
 </textarea>
 
-<p>semantics:</p>
+<p>emit:</p>
 <textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
   Specification [m o] = {{createEmptyTables();}}[[#lang peg\n${constructpeg()}]]
   MatchSection [@octothorpes m @rules] = [[#lang peg\n${octothorpes}${m}\n${rules}]]
