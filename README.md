@@ -28,7 +28,7 @@ I believe that you can write SCN's in only a few hours (maybe 10's of minutes), 
 
 I concentrate only on [Racket PEG Example 3](https://docs.racket-lang.org/peg/index.html) for clarity.
 
-By definition, then, this small project is incomplete, but is sufficient to show how to build an SCN that creates Racket code.
+This small project is only sufficient to show how to build an SCN that creates Racket code.
 
 I expect that this project could be extended by any competent programmer.
 
@@ -42,6 +42,8 @@ prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
 ```
 This pattern-matcher includes variables and Racket code, all of which makes the pattern-matcher harder to read.
 
+I'll try to make it easier to read.
+
 # Desired Output
 The Example 3 documentation shows the following Racket (Scheme) code for the above pattern matcher:
 ```
@@ -54,7 +56,7 @@ The Example 3 documentation shows the following Racket (Scheme) code for the abo
   (and (name v1 number) (? (and #\* (name v2 prod))))
   (if v2 (* v1 v2) v1))
 ```
-Obviously, this looks like Scheme code, and the simplicity of the original pattern is lost in Scheme-oriented details.
+Obviously, this looks like Racket/Scheme code, and the simplicity of the original pattern is lost in Scheme-oriented details.
 # DE-noising the Pattern
 We really want to say "match this", "then, do that with the matches".
 
@@ -72,6 +74,8 @@ prod -> (if $2 (* $1 $2) $1)
 ```
 
 where "$" is just another character that is a valid part of a name (if this were JS, we might use "_" instead of "$", but Racket lets us use "$").
+
+At the moment, `#lang peg` does not allow variables that begin with "$".  Racket allows "$", but the "#land peg" module of Racket does not allow them. So, we'll use "v" instead in this example - if this was a production project instead of an example project, we might want to name-mangle variables using some more hoary prefix (or, we might want to hack on the internals of "#lang peg"), but that would detract from the readability of this example.
 
 We could be fancier than this, using _v1_ and _v2_ and some _let_ expressions, but let's go for low-hanging fruit first.
 
@@ -114,7 +118,7 @@ I like to use the term _notation_ instead of the phrase "new syntax". A SCN - So
 
 The tool will convert the de-noised pattern into an internal form:
 ```
-number <- $1:[0-9]+
+number <- $0:[0-9]+
 sum <- $1:prod $2:('+' $3:sum)?
 prod <- $1number $2:('*' $3:prod)?
 ```
@@ -125,8 +129,8 @@ Off-hand, I think we'll just store the pattern and the do-that code as strings i
 
 For example the hash table entry for "number" will contain two strings:
 ```
-$1:[0-9]+
-(string->number $1)
+v0:[0-9]+
+(string->number v0)
 ```
 
 That looks easy. Even a machine can do this...
@@ -143,10 +147,13 @@ sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
 ## output:
-number -> (string->number $1)
-sum -> (if $2 (+ $1 $2) $1)
-prod -> (if $2 (* $1 $2) $1)
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
 ```
+
+[_Note that, at the moment, the programmer needs to use the correct variable names "v0", "v1", etc. Let's work only on the low-hanging fruit first, then, if we really want to, we can write pre-filters that provide a better UX._]
+
 ## Org Mode
 Emacs displays .md files using its org-mode.
 
@@ -156,16 +163,16 @@ The cursor must be positioned on a line that begins with "#".
 
 Hitting `<TAB>` again shows (un-elides) the lines.
 
-Using elision, the reader can concentrate on the _bare essence_ of the match, for example the reader can loo at the `# match` part and elide the `## output` part. You can't understand the `## output` part until you've understood the `# match` part anyway. Why confuse the reader by showing too much at once?
+Using elision, the reader can concentrate on the _bare essence_ of the match, for example the reader can loo at the `# match` part and elide the `## output` part. You can't understand the `## output` part until you've understood the `# match` part anyway. Don't confuse the reader by showing too much at once.
 
 In other words, .md files and org-mode can be used as an IDE for programming.
 
 # First Cut - Identity
 The first thing to do is to make a version of the transpiler that "does nothing". It parses the input and then outputs it with no substantial changes.
 
-This approach lets use build and test the pattern matcher in a coherent manner.
+This approach lets us build and test the pattern matcher in a step-wise manner.
 
-I'm using Ohm-JS which skips spaces if the Pattern rules start with capital letters.  This version does not "leave the input alone", since it drops whitespace[^1]. I've added some whitespace to make the identity output look nice.
+I'm using Ohm-JS which skips spaces if the pattern rule names start with capital letters.  This version does not "leave the input alone", since it drops whitespace[^1]. I've added some whitespace to make the identity output look nice.
 
 [^1]: It is actually possible to write a true identity grammar in Ohm-JS. For this, we would use rules that begin with lower-case letters and worry about whitespace. Most PEG libraries work this way, only. Ohm-JS was designed to elide whitespace - the idea being to keep the grammar architecture "clean". Most compilers drop whitespace early on, since it only gets in the way. Being able to write identity grammars (whitespace preserving grammars) makes it easier to think about building SCNs.  This may seem to be a small detail, but when small things get in the way, creativity drops. [Details kill](https://guitarvydas.github.io/2021/03/17/Details-Kill.html).  Programming is hard-enough. Suppressing details enables higher-level thought.
 
@@ -181,9 +188,9 @@ sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
 ## output
-number -> (string->number $1)
-sum -> (if $2 (+ $1 $2) $1)
-prod -> (if $2 (* $1 $2) $1)
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
 ```
 ## Patterns Specification
 ```
@@ -192,14 +199,19 @@ ex3 {
   MatchSection = "#"+ "match" Rule+
   OutputSection = "#"+ "output" Emitter+
 
-  Rule = Rid "<-" Pattern+
+  Rule = Rid "<-" Patterns
+
+  Patterns = MultiplePatterns | SinglePattern
+  MultiplePatterns = Pattern Pattern+
+  SinglePattern = Pattern
+
   Pattern = PatternWithOperator | PatternWithoutOperator
   PatternWithOperator = Primary Operator
+  PatternWithoutOperator = Primary
   Emitter = Eid "->" codeToEOL
 
-  PatternWithoutOperator = Primary
   Primary = ParenthesizedPrimary | Range | quoted | RuleReference
-  ParenthesizedPrimary = "(" Pattern+ ")"
+  ParenthesizedPrimary = "(" Patterns ")"
   RuleReference = id ~arrow
   Range = "[" alnum "-" alnum "]"
   quoted = "'" any "'"
@@ -211,7 +223,7 @@ ex3 {
   
   arrow = "<-" | "->"
   
-  keyword = "match" | "output" | "<-" | "->"
+  keyword = "match" | "output"
   id = ~keyword letter alnum*
   
   codeToEOL = (~newline any)* newline+
@@ -221,20 +233,24 @@ ex3 {
 ```
 ## Output Specification
 ```
-  Specification [m o] = [[${m}${o}]]
-  MatchSection [@octothorpes m @rules] = [[${octothorpes}${m}\n${rules}]]
+  Specification [m o] = {{createEmptyTables();}}[[#lang peg\n${constructpeg()}]]
+  MatchSection [@octothorpes m @rules] = [[#lang peg\n${octothorpes}${m}\n${rules}]]
   OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
 
-  Rule [rid arrow @patterns] = [[${rid}${arrow}${patterns}\n]]
-  Pattern [p] = [[${p}]]
+  Rule [id arrow patterns] = {{resetVariables()}}[[${addRule(id,patterns)}${id}${arrow}${patterns}\n]]
+  Patterns [p] = [[${p}]]
+  MultiplePatterns [p @more] = [[${p}${more}]]
+  SinglePattern [p] = [[${p}]]
+  Pattern [p] = [[${genvar()}:${p} ]]
   PatternWithOperator [prim op] = [[${prim}${op}]]
   PatternWithoutOperator [prim] = [[${prim}]]
-  Emitter [id arrow code] = [[${id}${arrow}${code}]]
+  
+  Emitter [id arrow code] = [[${addEmitter(id,code)}${id}${arrow}${code}]]
 
   Primary [p] = [[${p}]]
-  ParenthesizedPrimary [lpar @p rpar] = [[${lpar}${p}${rpar}]]
+  ParenthesizedPrimary [lpar p rpar] = [[(${p})]]
   RuleReference [id] = [[${id}]]
-  Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}${minus}${c2}${rbracket}]]
+  Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}-${c2}${rbracket}]]
   quoted [q1 c q2] = [[${q1}${c}${q2}]]
   
   Operator [op] = [[${op}]]
@@ -262,7 +278,7 @@ textarea {
 </head>
 <body>
 
-<h1>Racket PEG Transpolar Workbench</h1>
+<h1>Racket PEG Transpilar Workbench</h1>
 
 <p>grammar:</p>
 <textarea id="grammar" name="a" rows="1" cols="90" placeholder="grammar" style="background-color:oldlace;">
@@ -271,14 +287,19 @@ ex3 {
   MatchSection = "#"+ "match" Rule+
   OutputSection = "#"+ "output" Emitter+
 
-  Rule = Rid "<-" Pattern+
+  Rule = Rid "<-" Patterns
+
+  Patterns = MultiplePatterns | SinglePattern
+  MultiplePatterns = Pattern Pattern+
+  SinglePattern = Pattern
+
   Pattern = PatternWithOperator | PatternWithoutOperator
   PatternWithOperator = Primary Operator
+  PatternWithoutOperator = Primary
   Emitter = Eid "->" codeToEOL
 
-  PatternWithoutOperator = Primary
   Primary = ParenthesizedPrimary | Range | quoted | RuleReference
-  ParenthesizedPrimary = "(" Pattern+ ")"
+  ParenthesizedPrimary = "(" Patterns ")"
   RuleReference = id ~arrow
   Range = "[" alnum "-" alnum "]"
   quoted = "'" any "'"
@@ -290,7 +311,7 @@ ex3 {
   
   arrow = "<-" | "->"
   
-  keyword = "match" | "output" | "<-" | "->"
+  keyword = "match" | "output"
   id = ~keyword letter alnum*
   
   codeToEOL = (~newline any)* newline+
@@ -301,20 +322,24 @@ ex3 {
 
 <p>semantics:</p>
 <textarea id="semantics" rows="1" cols="90" placeholder="semantics" style="background-color:oldlace;">
-  Specification [m o] = [[${m}${o}]]
-  MatchSection [@octothorpes m @rules] = [[${octothorpes}${m}\n${rules}]]
+  Specification [m o] = {{createEmptyTables();}}[[#lang peg\n${constructpeg()}]]
+  MatchSection [@octothorpes m @rules] = [[#lang peg\n${octothorpes}${m}\n${rules}]]
   OutputSection [@octothorpes o @emitters] = [[${octothorpes}${o}\n${emitters}]]
 
-  Rule [rid arrow @patterns] = [[${rid}${arrow}${patterns}\n]]
-  Pattern [p] = [[${p}]]
+  Rule [id arrow patterns] = {{resetVariables()}}[[${addRule(id,patterns)}${id}${arrow}${patterns}\n]]
+  Patterns [p] = [[${p}]]
+  MultiplePatterns [p @more] = [[${p}${more}]]
+  SinglePattern [p] = [[${p}]]
+  Pattern [p] = [[${genvar()}:${p} ]]
   PatternWithOperator [prim op] = [[${prim}${op}]]
   PatternWithoutOperator [prim] = [[${prim}]]
-  Emitter [id arrow code] = [[${id}${arrow}${code}]]
+  
+  Emitter [id arrow code] = [[${addEmitter(id,code)}${id}${arrow}${code}]]
 
   Primary [p] = [[${p}]]
-  ParenthesizedPrimary [lpar @p rpar] = [[${lpar}${p}${rpar}]]
+  ParenthesizedPrimary [lpar p rpar] = [[(${p})]]
   RuleReference [id] = [[${id}]]
-  Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}${minus}${c2}${rbracket}]]
+  Range [lbracket c1 minus c2 rbracket] = [[${lbracket}${c1}-${c2}${rbracket}]]
   quoted [q1 c q2] = [[${q1}${c}${q2}]]
   
   Operator [op] = [[${op}]]
@@ -329,7 +354,6 @@ ex3 {
   
   codeToEOL [@cs @nls] = [[${cs}${nls}]] 
   newline [c] = [[${c}]]
-
 </textarea>
 
 <p>source:</p>
@@ -340,9 +364,9 @@ sum <- prod ('+' sum)?
 prod <- number ('*' prod)?
 
 ## output
-number -> (string->number $1)
-sum -> (if $2 (+ $1 $2) $1)
-prod -> (if $2 (* $1 $2) $1)
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
 </textarea>
 
 <p>transpiled:</p>
@@ -390,93 +414,46 @@ Once the identity transpiler appears to be working, we can think about outputtin
 
 We simply hack on the identity outputter until it does what we want.
 
-Let's begin by getting 
-```
-[0-9]+
-```
-to come out as
-```
-(+ (range #\0 #\9))
-```
 ## Step 1
-We change the _range_ output code to:
-```
-Range [lbracket c1 minus c2 rbracket] = [[(range ${c1} ${c2})]]
-```
+Write code in `support.js` that creates unique variable names.
 
-Test. Now the output is
-```
-#match
-number<-(range 0 9)+
-sum<-prod('+'sum)?
-prod<-number('*'prod)?
-##output
-number->(string->number $1)
-sum->(if $2 (+ $1 $2) $1)
-prod->(if $2 (* $1 $2) $1)
-```
+Write code in `support.js` that creates a hash table indexed by name, as stated above. 
+1. The table starts out as empty.
+2. Each Match rule creates a new entry, indexed by the rule ("#lang peg" rule name).
+3. Each Match rule inserts the pattern into the table under the rule name.
+4. Each Emitter rules inserts Racket code into the table under the rule name.
+5. The top-most rule of the matcher/emitter dumps the table as a readable string.
 
-(The range has been replaced, but not much else has changed. This is a temporary format and is not either identity nor output).
-
-## Step 2
-Let's move the operator to the front and make it more Lisp-y
+## Step 2 
+Rewrite the Pattern rule in the emitter to generate a new variable for every pattern.
 ```
-PatternWithOperator [prim op] = [[(${op} ${prim})]]
+Pattern [p] = [[${genvar()}:${p} ]]
 ```
-### Rule Splitting
-We want to output wrapper parentheses only when _operator_ is non-null.
-
-One solution is to wrap the output code in an _if-then-else_.
-
-But, the pattern-matching engine can do this work for us. The engine should tell us when an operator is present and when there's no operator.
-
-To get the engine to help us this way, we need to split the Pattern rule into two - one rule for when an operator is present and one when there is no operator.
-
-Pattern was split into two parts (1) with operator and (2) without operator, where one rule would have sufficed for only the grammar checking.  (You may have already noticed this split).)
-```
-Pattern = PatternWithOperator | PatternWithoutOperator
-PatternWithOperator = Primary Operator
-PatternWithoutOperator = Primary
-```
-This split allows the output to emit different code the different cases.
-```
-Pattern [p] = [[${p}]]
-PatternWithOperator [prim op] = [[(${op} ${prim})]]
-PatternWithoutOperator [prim] = [[${prim}]]
-```
+### Step 2a
+Rewrite the Rule emitter to reset the variable name generator for each new rule.
 
 ## Step 3
-Sequences of rules need to be enclosed in parentheses preceded by "and" `(and ... ...)`.
+Rewrite the Rule and Emitter emitter rules to add patterns and code to the hash table.
 
-There are two places in the code that refer to `Pattern+`.
+## Finished
+That's it.
 
-```
-...
-Rule = Rid "<-" Pattern+
-...
-ParenthesizedPrimary = "(" Pattern+ ")"
-...
-```
+The pattern matcher/emitter now inputs source code as above and outputs Racket "#lang peg" code with generated variables.
 
+# Variants
+We have a usable pattern matcher for our input "language" (I call that an SCN).
 
-Lets make one rule for Patterns.
-```
-...
-Rule = Rid "<-" Patterns
-Patterns = Pattern Pattern*
-...
-ParenthesizedPrimary = "(" Patterns ")"
-...
-```
-with the attendant changes in the output.
+To demonstrate emitting patterns as other languages, see the git branch "racket" where I've hacked the emitter to emit raw Racket/Scheme code instead of "#lang peg" code.
 
-[_At this point, I will stop trying to document every change and will list only major changes_]
-- Remove superfluous parentheses in ParenthesizedPattern.
+It should be easy to emit code for any language that has a PEG library, e.g. Python, JS (PEG.js), Common Lisp (ESRAP), etc, etc. 
 
-## Collecting Rules and Emitters
-source-to-source transpilation, no checking, easy
-hash table for rules and another hash table for emitters
-combine rules and emitters by name , `(define-peg rule-name rule-code emitter-code)`
+## Ideas for Variants
+[_untried_]
+blo
+With a little more work, it should be possible to emit code for any language that supports REGEXP.  PEG is just a superset of REGEXP.  (PEG allows calling rules, REGEXP doesn't.  You would need to figure out how to create the primitive PEG control-flow operations, e.g. AND, OR, ZERO-OR-MORE, ONE-OR-MORE, OPTIONAL at the level of rules (instead of only on the level of characters)).
+
+With a "lot" more work, it should be possible to emit code in WASM. Creating WASM is easy, but you'd have to write/find a PEG library or a REGEXP library for WASM first. In theory, you don't even need a PEG or a REGEXP library.
+
 # See Also
 
 [Blog](https://guitarvydas.github.io)

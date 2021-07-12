@@ -1,0 +1,235 @@
+* Transpiling
+** Source Code to Source Code
+** Use the machine to write code for you.
+* Example
+** Transpiling Racket Code
+```
+   #lang peg
+   number <- res:[0-9]+ -> (string->number res);
+   sum <- v1:prod ('+' v2:sum)? -> (if v2 (+ v1 v2) v1);
+   prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
+```
+** The Problem
+   The grammar is hard to read
+   The grammar contains too many details
+   Unlayered, Flat
+**** variables appear in the grammar
+**** code appears in the grammar
+** What We Really Want
+   Match patterns without the noise
+   Move noise to a different "layer"
+
+*** Grok
+number <- [0-9]+
+sum <- prod ('+' sum)?
+prod <- number ('*' prod)?
+
+*** Emit
+number -> (string->number $1)
+sum -> (if $2 (+ $1 $2) $1)
+prod -> (if $2 (* $1 $2) $1)
+
+** The Fix
+   write *notation* first (instead of choosing a GPL)
+   Transpile from notation to code
+
+*** SCN
+    means Solution Centric Notation
+    choose a notation for the problem instead of choosing a GPL
+    use PEG + Glue to deep-match the SCN
+    grok --> PEG (Ohm-JS) tool
+    emit --> Glue tool
+
+*** FDD
+    Failure Driven Development
+    we work on failing code
+    when code works, we ship it and move on
+**** FDD workflow
+    Q: how to incorporate failure into dev workflow?
+    A: automate, generate code
+    write code that writes code
+    fail, fix, regenerate
+
+** Case Study
+   SCN for *grok* and *emit*
+   as above
+
+   
+*** Racket PEG Example 3
+   example #3 in [Racket Peg example](https://docs.racket-lang.org/peg/index.html#%28part._.Example_3%29)
+   example uses the code:
+#lang peg
+number <- res:[0-9]+ -> (string->number res);
+sum <- v1:prod ('+' v2:sum)? -> (if v2 (+ v1 v2) v1);
+prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
+   N.B. semicolons needed
+   N.B. grammar + variables + code conflated together
+**** pattern
+     <- 
+**** code
+     ->
+**** variables
+     res:[0-9]+
+***** example
+      number <- res:[0-9]+ -> (string->number res);
+      
+      rule name: "number"
+      pattern: "[0-9]+"
+      sub-pattern name: "res"
+      code: "(string->number res)"
+      terminator: ";"
+***** de-noised
+      ...
+      number <- [0-9]+
+      ...
+      number -> (string->number v0)
+      ...
+**** Step 1
+     produce identity transpiler
+     ([identity](https://github.com/guitarvydas/rwb/tree/identity))
+**** Step 2
+     Hack on transpiler emitter to achieve desired output
+
+*** PEG Is More Flexible Than REGEXP
+    easy to pick off patterns and reformat
+    rule: Pattern
+
+      Pattern [p] = \[\[${genvar()}:${p}\]\]
+
+    (some setup code required)
+    see [ex3.html](https://github.com/guitarvydas/rwb/blob/master/ex3.html)
+
+** Result
+*** Input
+# match
+number <- [0-9]+
+sum <- prod ('+' sum)?
+prod <- number ('*' prod)?
+
+## output
+number -> (string->number v0)
+sum -> (if v2 (+ v0 v2) v0)
+prod -> (if v2 (* v0 v2) v0)
+*** Output
+#lang peg
+
+number <- v0:[0-9]+  -> (string->number v0)
+ ;
+sum <- v0:prod v3:(v1:'+' v2:sum )?  -> (if v2 (+ v0 v2) v0)
+ ;
+prod <- v0:number v3:(v1:'*' v2:prod )?  -> (if v2 (* v0 v2) v0)
+ ;
+
+** Variants
+   use same grok spec
+   write different emit spec
+   create Racket code directly
+   see [ex3a.html](https://github.com/guitarvydas/rwb/blob/racket/ex3a.html)
+
+
+
+
+    
+* Efficiency
+  doesn't matter
+  dev-time more important than code run-time
+  conflation of Software Architecture & Software Engineering with Software Optimization
+** GCC Trumped Squealing From Assembler Programmers
+   in 1980's, Assembler programmers said they could do 'better' than HLLs
+   GCC beat Assembler programmers
+   now, no on uses assembler and uses HLLs instead
+
+* Type Language
+* Factbases
+* Software Relativity
+* Scaling
+
+*** Grok+Emit Workbench
+    3 inputs
+      1. grok (aka grammar)
+      2. emit (aka semantics)
+      3. source code
+    1 output
+      4. transpiled code
+**** Grok
+     based on PEG technology
+     use Ohm-JS variant of PEG
+     use Ohm-editor (timesaver)
+**** Emit
+     use JS backtick syntax
+     super-simplified: back-tick strings only
+     reminiscent of /bin/sh strings
+     emit string enclose in double-brackets
+     \[\[abc\]\]        emit abc literally
+     \[\[\${abc}\]\]    emit value of abc (a string)
+     \[\[\${abc()}\]\]  call abc() function which returns a string
+     
+*** Designing an SCN
+    (see separate essay)
+
+
+
+    
+*** Designing an SCN
+**** express SCN as markdown .md
+    use #'s at front of line
+    indentation
+    compatible with .md
+    org mode .md allows eliding
+    use org mode as IDE 
+**** convert markdown to nested brace notation
+     # abc
+     ## def
+     becomes
+     abc { def }
+**** Low-Hanging Fruit
+     OK to not solve whole problem at once
+     small solutions lead to new ideas
+***** Example
+      prod <- v1:number ('*' v2:prod)? -> (if v2 (* v1 v2) v1);
+
+      automated naming:
+      prod <- v0:number v1:(v2:'*' v3:prod)? -> (if v3 (* v0 v3) v0);
+      
+      programmer must specify correct v0 and v3 in code
+****** New Ideas
+       v2 and v3 are actually sub-matches of v2
+       prod <- v0:number v1:(v1/0:'*' v1/1:prod)? -> (if v1/1 (* v0 v1/1) v0);
+       programmer still has to use the correct names
+       new names are "easier to understand"
+       can this lead to fully automated variable names?
+******* Sub-pattern names
+	programmer writes
+	prod <- x:number ('*' y:prod)? -> (if x (* x y) y);
+	
+	transpiler rewrites as
+	  prod <- v0:number v1:(v1/0:'*' v1/1:prod)? -> (if v1/1 (* v0 v1/1) v0);
+	  synonym x v0
+	  synonym y v1/1
+    	    prod <- v0:number v1:(v1/0:'*' v1/1::prod)? -> 
+	  (let ((x v0)
+	        (y v1/1))
+		(if x (* x y) y)) ;
+		
+        (not tried)
+
+    grok then spew
+    grok then reveal
+    grok then unveil
+    grok unwrap
+    grok exhibit
+    grok show
+    
+Grok shape
+Transform
+Dump
+Plate
+
+extrude
+project
+arrange
+format
+
+ports
+software relativity
+components
